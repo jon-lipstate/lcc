@@ -19,7 +19,7 @@ roundup :: proc(n: int, align: int) -> int {
 
 
 Arena_Index :: enum {
-	A,
+	Perm,
 	B,
 	C,
 }
@@ -35,7 +35,6 @@ Block :: struct {
 	n_bytes: int,
 	used:    int,
 }
-
 
 ALIGN :: max(size_of(rawptr), size_of(int), size_of(f64), size_of(^u8))
 
