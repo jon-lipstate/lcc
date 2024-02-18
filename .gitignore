@@ -1,3 +1,6 @@
 *.exe
 *.pdb
 /lcc
+/.VSCodeCounter
+.vscode
+test.h

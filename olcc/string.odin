@@ -13,14 +13,43 @@ BUCKET_COUNT :: 1024
 BUCKETS: [BUCKET_COUNT]^Interned_String
 RCSID := "$Id$"
 
+hash :: proc {
+	hash_string,
+	hash_buf,
+	hash_int,
+}
+hash_int :: proc(#any_int v: int) -> u32 {
+	h := u32(2166136261)
+
+	switch {
+	case size_of(v) <= 4:
+		h ~= u32(v)
+		h *= 16777619
+		return h
+	case size_of(v) == 8:
+		h ~= u32(v & 0xFFFFFFFF)
+		h *= 16777619
+
+		h ~= u32((v >> 32) & 0xFFFFFFFF)
+		h *= 16777619
+		return h
+	case:
+		unimplemented("unhandled size")
+
+	}
+	unreachable()
+}
+hash_buf :: proc(buf: []u8) -> u32 {
+	h := u32(2166136261)
+	for b in buf {
+		h ~= u32(b)
+		h *= 16777619
+	}
+	return h
+}
 //fnv1a
 hash_string :: proc(str: string) -> u32 {
-	s_hash := u32(2166136261)
-	for ch in (transmute([]u8)str) {
-		s_hash ~= u32(ch)
-		s_hash *= 16777619
-	}
-	return s_hash
+	return hash_buf(transmute([]u8)str)
 }
 
 string_ :: intern_string
@@ -42,6 +71,13 @@ intern_string :: proc(str: cstring) -> ^Interned_String {
 			return p // found exact match
 		}
 	}
+
+	// NOTE: this doesnt quite align to lcc's static allocation strategy
+	// static char *next, *strlimit;
+	// TODO: come back and harmonize it
+	// lcc strings internally manages data via pages (4k bytes) using next and str-limit. rework arena to hand it the Block itself
+	@(static)
+	current_block: ^Block
 
 	// If not found, create a new interned string
 	new_str: ^Interned_String = transmute(^Interned_String)allocate(

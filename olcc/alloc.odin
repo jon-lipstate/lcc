@@ -5,24 +5,17 @@ import "core:os"
 ptr_diff :: proc(a, b: rawptr) -> int {
 	return int(transmute(uintptr)b - transmute(uintptr)a)
 }
-ptr_add :: proc(a: rawptr, b: int) -> rawptr {
-	return transmute(rawptr)(transmute(uintptr)b + transmute(uintptr)a)
+ptr_add :: proc(ptr: ^$T, incr: int) -> ^T {
+	return transmute(^T)(transmute(uintptr)incr * size_of(T) + transmute(uintptr)ptr)
+}
+ptr_sub :: proc(ptr: ^$T, operand: ^T) -> ^T {
+	return transmute(^T)(transmute(uintptr)ptr - transmute(uintptr)operand)
 }
 
-error :: proc(msg: string) {
-	unimplemented()
+roundup :: proc(x, n: int) -> int {
+	return (x + (n - 1)) & (~(n - 1))
 }
 
-roundup :: proc(n: int, align: int) -> int {
-	unimplemented()
-}
-
-
-Arena_Index :: enum {
-	Perm,
-	B,
-	C,
-}
 
 Header :: struct {
 	block: Block,
@@ -42,7 +35,7 @@ PURIFY :: #config(purify, false)
 
 when PURIFY {
 	P_ARENA: [3]^Header
-	allocate :: proc(n_bytes: uint, idx: Arena_Index) -> [^]u8 {
+	allocate :: proc(n_bytes: uint, idx: Arena, zero_mem := false) -> [^]u8 {
 		buf, err := mem.alloc(int(n_bytes) + size_of(Header))
 		if err != mem.Allocator_Error.None {
 			error("insufficent memory\n")
@@ -58,7 +51,7 @@ when PURIFY {
 
 		return hdr.block.base
 	}
-	deallocate :: proc(idx: Arena_Index) {
+	deallocate :: proc(idx: Arena) {
 		p, q: ^Header
 		for p = P_ARENA[int(idx)]; p != nil; p = q {
 			q = transmute(^Header)p.block.next
@@ -74,7 +67,7 @@ when PURIFY {
 	ARENA := [3]^Block{&first[0], &first[1], &first[2]}
 	FREEBLOCKS: ^Block = nil
 
-	allocate :: proc(n_bytes: uint, idx: Arena_Index) -> [^]u8 {
+	allocate :: proc(n_bytes: uint, idx: Arena, zero_mem := false) -> [^]u8 {
 		assert(n_bytes > 0)
 		ap := transmute(^Block)ARENA[int(idx)]
 		n_bytes := roundup(int(n_bytes), ALIGN)
@@ -102,15 +95,16 @@ when PURIFY {
 			ap.next = nil
 			ARENA[int(idx)] = ap
 		}
+		if zero_mem {mem.zero(ap.base, n_bytes)}
 		return ap.base
 	}
-	deallocate :: proc(idx: Arena_Index) {
+	deallocate :: proc(idx: Arena) {
 		ARENA[int(idx)].next = FREEBLOCKS
 		FREEBLOCKS = first[int(idx)].next // WHY FIRST????
 		first[int(idx)].next = nil
 		ARENA[int(idx)] = &first[int(idx)]
 	}
-	new_array :: proc(m, n: uint, idx: Arena_Index) -> rawptr {
+	new_array :: proc(m, n: uint, idx: Arena) -> rawptr {
 		return allocate(m * n, idx)
 	}
 }

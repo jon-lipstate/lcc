@@ -1,0 +1,25 @@
+package lcc
+
+Symbol_Id :: enum {
+	Invalid,
+	FLOAT = 1,
+	DOUBLE,
+	CHAR,
+	SHORT,
+	INT,
+	UNSIGNED,
+	POINTER,
+	VOID,
+	STRUCT,
+	UNION,
+	FUNCTION,
+	ARRAY,
+	ENUM,
+	LONG,
+	CONST,
+	VOLATILE,
+	ID = 32,
+	FCON = 34,
+	ICON = 35,
+	SCON = 36,
+}
